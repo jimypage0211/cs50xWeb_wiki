@@ -4,21 +4,34 @@ import markdown2
 from django.http import HttpResponse, HttpResponseRedirect
 from random import randint
 from django import forms
-#from django_markdown.models import MarkdownField
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+
+# from django_markdown.models import MarkdownField
 from . import util
 
-
-
 class NewEntryForm(forms.Form):
-    title = forms.CharField(label='Entry name')
-    markdown = forms.CharField(label='')
-    markdown.widget= forms.Textarea()
-    markdown.initial = "Enter markdown for entry here"
+    title = forms.CharField(label="Entry name")
+    markdown = forms.CharField(label="")
+    placeholder = "#Enter the content markup for this entry here ..."
+    markdown.widget = forms.Textarea(attrs={"placeholder": placeholder})
+
+
+def delete_entry(title):
+    """
+    Deletes an encyclopedia entry, by its title. If no such
+    entry exists, the function returns None.
+    """
+    filename = f"entries/{title}.md"
+    if default_storage.exists(filename):
+        default_storage.delete(filename)
 
 # Helper method to render an entryPage
 def renderEntryPage(request, entry, entryTitle):
     return render(
-        request, "encyclopedia/entryPage.html", {"entries": entry, "title": entryTitle}
+        request,
+        "encyclopedia/entryPage.html",
+        {"entries": entry, "entryTitle": entryTitle},
     )
 
 
@@ -83,18 +96,60 @@ def searchPage(request):
 
 def newEntry(request):
     if request.method == "POST":
+        # we are receiving a form submitted
         form = NewEntryForm(request.POST)
         if form.is_valid:
             title = form.data["title"]
             markdown = form.data["markdown"]
+            # if entry exist in files render error page
             if util.get_entry(title) != None:
-                  entry = f'<h1>The  page for "{title}" is already created</h1>'
-                  return renderEntryPage(request, entry, "Error")
+                entry = f'<h1>The  page for "{title}" is already created</h1>'
+                return renderEntryPage(request, "Error", entry)
             else:
-                util.save_entry(title,markdown)
-                return HttpResponseRedirect (reverse("getByTitle", kwargs={'entryTitle': title}))
+                # Save the entry
+                util.save_entry(title, markdown)
+                # Go to the fresh create entry page
+                return HttpResponseRedirect(
+                    reverse("getByTitle", kwargs={"entryTitle": title})
+                )
         else:
             return HttpResponse("form is not valid")
     else:
-        return render(request, "encyclopedia/newEntryPage.html", {"form": NewEntryForm()})
+        # we go to the create new entry page
+        return render(
+            request, "encyclopedia/newEntryPage.html", {"form": NewEntryForm()}
+        )
+
+
+def editEntry(request, entryTitle):
+    if request.method == "POST":
+        form = NewEntryForm(request.POST)
+        if form.is_valid:
+            title = form.data["title"]
+            markdown = form.data["markdown"]
+            # Save the entry
+            util.save_entry(title, markdown)
+            # Go to the fresh create entry page
+            delete_entry(entryTitle)
+            return HttpResponseRedirect(
+                reverse("getByTitle", kwargs={"entryTitle": title})
+            )
+        return
+    else:
+        entry = util.get_entry(entryTitle)
+        form = NewEntryForm(initial={"title": entryTitle, "markdown": entry})
+        return render(
+            request,
+            "encyclopedia/editEntryPage.html",
+            {"form": form, "entryTitle": entryTitle},
+        )
     
+def deleteEntry(request,entryTitle):
+    """
+    Deletes an encyclopedia entry, by its title. If no such
+    entry exists, the function returns None.
+    """
+    filename = f"entries/{entryTitle}.md"
+    if default_storage.exists(filename):
+        default_storage.delete(filename)
+    return renderLists(request,util.list_entries)

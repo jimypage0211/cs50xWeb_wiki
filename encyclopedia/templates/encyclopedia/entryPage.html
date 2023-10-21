@@ -4,6 +4,11 @@
   {{entryTitle}} 
  {% endblock %} 
 
-  {% block body %}
-{{entries | safe}}
-{% endblock %}
+ {% block body %}
+  <h1>Entry: {{entryTitle}} </h1>
+  {{entries | safe}}
+  <br>
+  <button class="btn btn-primary" onclick="window.location.href='/edit/{{entryTitle}}';">Edit entry</button>
+  <button class="btn btn-primary" onclick="window.location.href='/delete/{{entryTitle}}';">Delete entry</button>
+ {% endblock %}
+

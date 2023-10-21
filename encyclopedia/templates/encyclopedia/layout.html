@@ -20,7 +20,8 @@
           id="logo"
           src="{% static 'encyclopedia/wikImg.png' %}"
           alt="wiki"
-          style="height: 200px; width: 200px; padding: 10px" />
+          class="img-fluid"
+          style="padding: 10px"/>
         <form action="{%url 'search'%}" method="post">
           {% csrf_token %}
           <input
