@@ -2,28 +2,47 @@ from django.shortcuts import render
 import markdown2
 from django.http import HttpResponse
 from random import randint
-from django import forms
 from . import util
 
-
+# Helper method to render an entryPage 
 def renderEntryPage(request, entry, entryTitle):
     return render(
         request, "encyclopedia/entryPage.html", {"entries": entry, "title": entryTitle}
     )
 
+# Helper method to render an list of entries 
+def renderLists(request, list):
+    return render(
+        request, "encyclopedia/index.html", {"entries": list}
+    )
+
+# Helper method to check if the entry query is a substring of a saved entry
+def isSubstringOfEntry(newEntry):
+    entries = util.list_entries()
+    matches = []    
+    #Check if substring
+    for savedEntry in entries:
+        if newEntry.upper() in savedEntry.upper():
+            matches.append(savedEntry)
+    if len(matches) == 0:
+        return None
+    else:
+        return matches
+
 
 def index(request):
-    return render(request, "encyclopedia/index.html", {"entries": util.list_entries()})
+    return renderLists(request, util.list_entries())
 
 
 def entryPage(request, entryTitle):
     entryStr = ""
     entry = util.get_entry(entryTitle)
     if entry == None:
-        entryStr = "None"
+        entryStr = f'<h1>The requested page for "{entryTitle}" was not found.</h1>'
+        entryTitle = "Error"
     else:
         entryStr = markdown2.markdown(entry)
-    return renderEntryPage(request,entryStr,entryTitle)
+    return renderEntryPage(request, entryStr, entryTitle)
 
 
 def randomPage(request):
@@ -31,16 +50,21 @@ def randomPage(request):
     randEntryName = entries[randint(0, len(entries) - 1)]
     randEntry = markdown2.markdown(util.get_entry(randEntryName))
 
-    return renderEntryPage(request,randEntry,randEntryName)
+    return renderEntryPage(request, randEntry, randEntryName)
 
 
 def searchPage(request):
     if request.method == "POST":
         q = request.POST["q"]
         if util.get_entry(q) == None:
-            entry = f'<h1>The requested page for "{q}" was not found.</h1>'
-            return renderEntryPage(request,entry,"Error")
+            matches = isSubstringOfEntry(q)
+            if matches == None:
+                entry = f'<h1>The requested page for "{q}" was not found.</h1>'
+                return renderEntryPage(request, entry, "Error")
+            else:
+                return renderLists(request, matches)
+
         else:
             entry = markdown2.markdown(util.get_entry(q))
-            return renderEntryPage(request,entry,q)
+            return renderEntryPage(request, entry, q)
     return
