@@ -2,25 +2,35 @@ from django.shortcuts import render
 import markdown2
 from django.http import HttpResponse
 from random import randint
+from django import forms
+#from django_markdown.models import MarkdownField
 from . import util
 
-# Helper method to render an entryPage 
+
+
+class NewEntryForm(forms.Form):
+    title = forms.CharField(label='Entry name')
+    markdown = forms.CharField(label='')
+    markdown.widget= forms.Textarea()
+    markdown.initial = "Enter markdown for entry here"
+
+# Helper method to render an entryPage
 def renderEntryPage(request, entry, entryTitle):
     return render(
         request, "encyclopedia/entryPage.html", {"entries": entry, "title": entryTitle}
     )
 
-# Helper method to render an list of entries 
+
+# Helper method to render an list of entries
 def renderLists(request, list):
-    return render(
-        request, "encyclopedia/index.html", {"entries": list}
-    )
+    return render(request, "encyclopedia/index.html", {"entries": list})
+
 
 # Helper method to check if the entry query is a substring of a saved entry
 def isSubstringOfEntry(newEntry):
     entries = util.list_entries()
-    matches = []    
-    #Check if substring
+    matches = []
+    # Check if substring
     for savedEntry in entries:
         if newEntry.upper() in savedEntry.upper():
             matches.append(savedEntry)
@@ -68,3 +78,18 @@ def searchPage(request):
             entry = markdown2.markdown(util.get_entry(q))
             return renderEntryPage(request, entry, q)
     return
+
+
+def newEntry(request):
+    if request.method == "POST":
+        form = NewEntryForm(request.POST)
+        if form.is_valid:
+            title = form.data["title"]
+            markdown = form.data["markdown"]
+            util.save_entry(title,markdown)
+            return render(request, "encyclopedia/newEntryPage.html", {"form": NewEntryForm()})  
+        else:
+            return HttpResponse("form is not valid")
+    else:
+        return render(request, "encyclopedia/newEntryPage.html", {"form": NewEntryForm()})
+    
