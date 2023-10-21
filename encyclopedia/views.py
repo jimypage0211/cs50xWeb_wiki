@@ -1,6 +1,7 @@
 from django.shortcuts import render
+from django.urls import reverse
 import markdown2
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from random import randint
 from django import forms
 #from django_markdown.models import MarkdownField
@@ -86,8 +87,12 @@ def newEntry(request):
         if form.is_valid:
             title = form.data["title"]
             markdown = form.data["markdown"]
-            util.save_entry(title,markdown)
-            return render(request, "encyclopedia/newEntryPage.html", {"form": NewEntryForm()})  
+            if util.get_entry(title) != None:
+                  entry = f'<h1>The  page for "{title}" is already created</h1>'
+                  return renderEntryPage(request, entry, "Error")
+            else:
+                util.save_entry(title,markdown)
+                return HttpResponseRedirect (reverse("getByTitle", kwargs={'entryTitle': title}))
         else:
             return HttpResponse("form is not valid")
     else:
