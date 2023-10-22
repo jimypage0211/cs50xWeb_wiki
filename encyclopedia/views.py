@@ -11,6 +11,7 @@ from . import util
 
 
 class NewEntryForm(forms.Form):
+    """Create and Edit form class"""
     title = forms.CharField(label="Entry name")
     markdown = forms.CharField(label="")
     placeholder = "#Enter the content markup for this entry here ..."
@@ -18,6 +19,8 @@ class NewEntryForm(forms.Form):
 
 
 def renderExistError(request, title):
+    """Helper function to render the already exist error page"""
+
     error = f'<h1>The requested page for "{title}" alreadyExist.</h1>'
     return render(
         request,
@@ -27,6 +30,8 @@ def renderExistError(request, title):
 
 
 def renderNotFoundError(request, title):
+    """Helper function to render the not found error page """
+
     error = f'<h1>The requested page for "{title}" was not found.</h1>'
     return render(
         request,
@@ -35,18 +40,8 @@ def renderNotFoundError(request, title):
     )
 
 
-def delete_entry(title):
-    """
-    Deletes an encyclopedia entry, by its title. If no such
-    entry exists, the function returns None.
-    """
-    filename = f"entries/{title}.md"
-    if default_storage.exists(filename):
-        default_storage.delete(filename)
-
-
-# Helper method to render an entryPage
 def renderEntryPage(request, entry, entryTitle):
+    """Helper method to render an entryPage"""
     return render(
         request,
         "encyclopedia/entryPage.html",
@@ -54,8 +49,8 @@ def renderEntryPage(request, entry, entryTitle):
     )
 
 
-# Helper method to render an list of entries
 def renderLists(request, list):
+    """Helper method to render an list of entries"""
     return render(request, "encyclopedia/index.html", {"entries": list})
 
 
@@ -146,7 +141,7 @@ def editEntry(request, entryTitle):
             util.save_entry(newTitle, markdown)
             # delete previous entry
             if newTitle != entryTitle:
-                delete_entry(entryTitle)
+                deleteEntry(request, entryTitle)
             # Go to the fresh create entry page
             return HttpResponseRedirect(
                 reverse("getByTitle", kwargs={"entryTitle": newTitle})
