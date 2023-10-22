@@ -4,17 +4,35 @@ import markdown2
 from django.http import HttpResponse, HttpResponseRedirect
 from random import randint
 from django import forms
-from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 # from django_markdown.models import MarkdownField
 from . import util
+
 
 class NewEntryForm(forms.Form):
     title = forms.CharField(label="Entry name")
     markdown = forms.CharField(label="")
     placeholder = "#Enter the content markup for this entry here ..."
     markdown.widget = forms.Textarea(attrs={"placeholder": placeholder})
+
+
+def renderExistError(request, title):
+    error = f'<h1>The requested page for "{title}" alreadyExist.</h1>'
+    return render(
+        request,
+        "encyclopedia/errorPage.html",
+        {"errorMsg": error, "errorType": "Page already exist"},
+    )
+
+
+def renderNotFoundError(request, title):
+    error = f'<h1>The requested page for "{title}" was not found.</h1>'
+    return render(
+        request,
+        "encyclopedia/errorPage.html",
+        {"errorMsg": error, "errorType": "Page not found"},
+    )
 
 
 def delete_entry(title):
@@ -25,6 +43,7 @@ def delete_entry(title):
     filename = f"entries/{title}.md"
     if default_storage.exists(filename):
         default_storage.delete(filename)
+
 
 # Helper method to render an entryPage
 def renderEntryPage(request, entry, entryTitle):
@@ -62,8 +81,7 @@ def entryPage(request, entryTitle):
     entryStr = ""
     entry = util.get_entry(entryTitle)
     if entry == None:
-        entryStr = f'<h1>The requested page for "{entryTitle}" was not found.</h1>'
-        entryTitle = "Error"
+        return renderNotFoundError(request, entryTitle)
     else:
         entryStr = markdown2.markdown(entry)
     return renderEntryPage(request, entryStr, entryTitle)
@@ -79,18 +97,16 @@ def randomPage(request):
 
 def searchPage(request):
     if request.method == "POST":
-        q = request.POST["q"]
-        if util.get_entry(q) == None:
-            matches = isSubstringOfEntry(q)
+        entryTitle = request.POST["q"]
+        if util.get_entry(entryTitle) == None:
+            matches = isSubstringOfEntry(entryTitle)
             if matches == None:
-                entry = f'<h1>The requested page for "{q}" was not found.</h1>'
-                return renderEntryPage(request, entry, "Error")
+                return renderNotFoundError(request, entryTitle)
             else:
                 return renderLists(request, matches)
-
         else:
-            entry = markdown2.markdown(util.get_entry(q))
-            return renderEntryPage(request, entry, q)
+            entry = markdown2.markdown(util.get_entry(entryTitle))
+            return renderEntryPage(request, entry, entryTitle)
     return
 
 
@@ -101,21 +117,20 @@ def newEntry(request):
         if form.is_valid:
             title = form.data["title"]
             markdown = form.data["markdown"]
-            # if entry exist in files render error page
+            # If entry exist in files render error page.
             if util.get_entry(title) != None:
-                entry = f'<h1>The  page for "{title}" is already created</h1>'
-                return renderEntryPage(request, "Error", entry)
+                return renderExistError(request, title)
             else:
-                # Save the entry
+                # Save the entry.
                 util.save_entry(title, markdown)
-                # Go to the fresh create entry page
+                # Go to the fresh created entry page.
                 return HttpResponseRedirect(
                     reverse("getByTitle", kwargs={"entryTitle": title})
                 )
         else:
             return HttpResponse("form is not valid")
     else:
-        # we go to the create new entry page
+        # Goes to the create new entry page.
         return render(
             request, "encyclopedia/newEntryPage.html", {"form": NewEntryForm()}
         )
@@ -125,14 +140,16 @@ def editEntry(request, entryTitle):
     if request.method == "POST":
         form = NewEntryForm(request.POST)
         if form.is_valid:
-            title = form.data["title"]
+            newTitle = form.data["title"]
             markdown = form.data["markdown"]
-            # Save the entry
-            util.save_entry(title, markdown)
+            # Save the new edited entry
+            util.save_entry(newTitle, markdown)
+            # delete previous entry
+            if newTitle != entryTitle:
+                delete_entry(entryTitle)
             # Go to the fresh create entry page
-            delete_entry(entryTitle)
             return HttpResponseRedirect(
-                reverse("getByTitle", kwargs={"entryTitle": title})
+                reverse("getByTitle", kwargs={"entryTitle": newTitle})
             )
         return
     else:
@@ -143,8 +160,9 @@ def editEntry(request, entryTitle):
             "encyclopedia/editEntryPage.html",
             {"form": form, "entryTitle": entryTitle},
         )
-    
-def deleteEntry(request,entryTitle):
+
+
+def deleteEntry(request, entryTitle):
     """
     Deletes an encyclopedia entry, by its title. If no such
     entry exists, the function returns None.
@@ -152,4 +170,4 @@ def deleteEntry(request,entryTitle):
     filename = f"entries/{entryTitle}.md"
     if default_storage.exists(filename):
         default_storage.delete(filename)
-    return renderLists(request,util.list_entries)
+    return renderLists(request, util.list_entries)
