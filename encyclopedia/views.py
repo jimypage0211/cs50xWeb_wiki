@@ -12,6 +12,7 @@ from . import util
 
 class NewEntryForm(forms.Form):
     """Create and Edit form class"""
+
     title = forms.CharField(label="Entry name")
     markdown = forms.CharField(label="")
     placeholder = "#Enter the content markup for this entry here ..."
@@ -30,7 +31,7 @@ def renderExistError(request, title):
 
 
 def renderNotFoundError(request, title):
-    """Helper function to render the not found error page """
+    """Helper function to render the not found error page"""
 
     error = f'<h1>The requested page for "{title}" was not found.</h1>'
     return render(
@@ -42,6 +43,7 @@ def renderNotFoundError(request, title):
 
 def renderEntryPage(request, entry, entryTitle):
     """Helper method to render an entryPage"""
+
     return render(
         request,
         "encyclopedia/entryPage.html",
@@ -54,11 +56,12 @@ def renderLists(request, list):
     return render(request, "encyclopedia/index.html", {"entries": list})
 
 
-# Helper method to check if the entry query is a substring of a saved entry
+#
 def isSubstringOfEntry(newEntry):
+    """Helper method to check if the entry query is a substring of a saved entry"""
+
     entries = util.list_entries()
     matches = []
-    # Check if substring
     for savedEntry in entries:
         if newEntry.upper() in savedEntry.upper():
             matches.append(savedEntry)
@@ -69,28 +72,34 @@ def isSubstringOfEntry(newEntry):
 
 
 def index(request):
+    """Renders Home page"""
+
     return renderLists(request, util.list_entries())
 
 
 def entryPage(request, entryTitle):
+    """Renders requested entry page or error if not found"""
     entryStr = ""
     entry = util.get_entry(entryTitle)
     if entry == None:
         return renderNotFoundError(request, entryTitle)
     else:
-        entryStr = markdown2.markdown(entry)
-    return renderEntryPage(request, entryStr, entryTitle)
+        content = markdown2.markdown(entry)
+    return renderEntryPage(request, content, entryTitle)
 
 
 def randomPage(request):
+    """Renders a random entry page"""
+
     entries = util.list_entries()
     randEntryName = entries[randint(0, len(entries) - 1)]
     randEntry = markdown2.markdown(util.get_entry(randEntryName))
-
     return renderEntryPage(request, randEntry, randEntryName)
 
 
 def searchPage(request):
+    """Renders the list of substrings matches from the search"""
+
     if request.method == "POST":
         entryTitle = request.POST["q"]
         if util.get_entry(entryTitle) == None:
@@ -102,10 +111,15 @@ def searchPage(request):
         else:
             entry = markdown2.markdown(util.get_entry(entryTitle))
             return renderEntryPage(request, entry, entryTitle)
-    return
+    return HttpResponse("Something didn't work")
 
 
 def newEntry(request):
+    """
+    Renders the NEW entry page. If page already exist renders 
+    an already exist error otherwise it renders the new entry page
+    """
+
     if request.method == "POST":
         # we are receiving a form submitted
         form = NewEntryForm(request.POST)
@@ -132,6 +146,10 @@ def newEntry(request):
 
 
 def editEntry(request, entryTitle):
+    """
+    Renders the EDIT entry page. If title doesnt change, it renders the edited entry,
+    otherwise, it deletes the entry with the previous name and renders all entries
+    """
     if request.method == "POST":
         form = NewEntryForm(request.POST)
         if form.is_valid:
@@ -158,11 +176,10 @@ def editEntry(request, entryTitle):
 
 
 def deleteEntry(request, entryTitle):
-    """
-    Deletes an encyclopedia entry, by its title. If no such
-    entry exists, the function returns None.
-    """
+    """ Deletes an encyclopedia entry, by its title. Renders all entries"""
+
     filename = f"entries/{entryTitle}.md"
     if default_storage.exists(filename):
         default_storage.delete(filename)
     return renderLists(request, util.list_entries)
+
